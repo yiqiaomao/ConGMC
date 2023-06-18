@@ -103,8 +103,7 @@ def run():
             all_img_pro, all_txt_pro, all_img_c, all_txt_c, _ = model(img, txt)
             acc_1, nmi_1, ari1 = getACC_NMI(all_img_c, label)
             print('ACC %.4f NMI1: %.4f ARI1: %.4f' % (acc_1, nmi_1, ari1))
-    del data, model, img, txt
-    return max_ACC
+
 
 
 def getNearest(fea1, fea2):
