@@ -138,7 +138,7 @@ def UD_constraint(classer):
 class CLoss1(nn.Module):
 
     def __init__(self, bs, tau=0.5, cos_sim=True, gpu=True, eps=1e-8):
-        super(NTXentLoss, self).__init__()
+        super(CLoss1, self).__init__()
         self.tau = tau
         self.use_cos_sim = cos_sim
         self.gpu = gpu
@@ -148,7 +148,6 @@ class CLoss1(nn.Module):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def get_pos_and_neg_mask1(self, bs):
-        ''' Org_NTXentLoss_mask '''
         zeros = torch.zeros((bs, bs), dtype=torch.uint8)
         eye = torch.eye(bs, dtype=torch.uint8)
         pos_mask = torch.cat([
