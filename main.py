@@ -21,7 +21,7 @@ parser.add_argument("--num_epochs", type=int, default=200)
 parser.add_argument("--batch_size", type=int, default=512)
 config = parser.parse_args()
 config.max_ACC = 0
-loss_NTXent = NTXentLoss(config.batch_size)
+Closs1 = CLoss1(config.batch_size)
 get_pseudo = Pseudo_Label_Loss(config.batch_size)
 print(config.dataset_root)
 
@@ -75,7 +75,7 @@ def run():
                 prior_sample = prior.sample().to(device)
                 skl1 = torch.nn.functional.kl_div(img_pro, prior_sample).to(device)
                 skl2 = torch.nn.functional.kl_div(txt_pro, prior_sample).to(device)
-            loss1 = loss_NTXent(img_pro, txt_pro, img_c, txt_c, index_nearest1, index_nearest2)
+            loss1 = Closs1(img_pro, txt_pro, img_c, txt_c, index_nearest1, index_nearest2)
             loss2 = skl1 + skl2
             loss3 = F.l1_loss(img2txt_rec, img_pro) + F.l1_loss(txt2img_rec, txt_pro) \
                     + criterion(img2txt_cluster, img_cluster.argmax(dim=-1)) + criterion(txt2img_cluster, txt_cluster.argmax(dim=-1))
