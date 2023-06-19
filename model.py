@@ -135,7 +135,7 @@ def UD_constraint(classer):
     return newL
 
 
-class NTXentLoss(nn.Module):
+class CLoss1(nn.Module):
 
     def __init__(self, bs, tau=0.5, cos_sim=True, gpu=True, eps=1e-8):
         super(NTXentLoss, self).__init__()
