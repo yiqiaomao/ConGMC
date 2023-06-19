@@ -260,7 +260,7 @@ class Pseudo_Label_Loss(nn.Module):
             feature.unsqueeze(1), feature.unsqueeze(0)) / self.tau  # s_(i,j)
         sim_pos = torch.exp(sim_mat.masked_select(self.pos_mask).clone())
         sim_neg = torch.exp(sim_mat.masked_select(self.neg_mask).clone())
-        loss = (- torch.log(sim_pos / (sim_neg.sum(dim=-1) + self.eps))).mean()
+        loss = (- torch.log(sim_pos / (sim_neg.sum(dim=-1) + self.eps))).mean()/10
 
         return loss
 
