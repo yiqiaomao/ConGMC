@@ -82,7 +82,7 @@ def run():
             if epoch < 50:
                 loss4 = 0
             else:
-                loss4 = 0.1*(get_pseudo(img_pro, img_c) + get_pseudo(txt_pro, txt_c))
+                loss4 = get_pseudo(img_pro, img_c) + get_pseudo(txt_pro, txt_c)
 
             if epoch % 5 == 0:
                 with torch.no_grad():
