@@ -4,7 +4,7 @@ import numpy as np
 import utils1
 from dataset import Dateset_mat, data_loder
 from tqdm import trange
-from model import Net, UD_constraint, NTXentLoss, Pseudo_Label_Loss
+from model import Net, UD_constraint, CLoss1, Pseudo_Label_Loss
 import torch.nn.functional as F
 import warnings
 import torch.nn as nn
