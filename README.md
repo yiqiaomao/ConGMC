@@ -8,7 +8,7 @@ This repository contains the Youcook dataset as an example. More datasets are co
 The model and CF-Align are constructed in model.py. All loss functions are shown in main.py
 
 ## Running
-execute the following command:
+Execute the following command:
 > python main.py
 
 ## Software
