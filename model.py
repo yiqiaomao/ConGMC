@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 from __future__ import print_function
 
 import torch.nn as nn
-import torch as th
 import numpy as np
 import torch
 
@@ -131,14 +130,14 @@ def UD_constraint(classer):
         argmaxes = np.nanargmax(CL, 0)
     except:
         argmaxes = np.argmax(CL, 0)
-    newL = th.LongTensor(argmaxes)
+    newL = torch.LongTensor(argmaxes)
     return newL
 
 
-class CLoss1(nn.Module):
-
+class NTXentLoss(nn.Module):
+    '''CF-Align'''
     def __init__(self, bs, tau=0.5, cos_sim=True, gpu=True, eps=1e-8):
-        super(CLoss1, self).__init__()
+        super(NTXentLoss, self).__init__()
         self.tau = tau
         self.use_cos_sim = cos_sim
         self.gpu = gpu
@@ -164,6 +163,8 @@ class CLoss1(nn.Module):
         return mask
 
     def get_pos_and_neg_mask(self, bs1, label1, label2, index_nearest1, index_nearest2):
+        # label1, label2: Remove instances belonging to the same cluster from negative samples
+        # index_nearest1, index_nearest2: Add additional positive samples
         label1 = torch.argmax(label1, dim=1)
         label2 = torch.argmax(label2, dim=1)
         eye = torch.eye(bs1, dtype=torch.uint8).to(self.device)
@@ -188,6 +189,7 @@ class CLoss1(nn.Module):
         return pos_mask, neg_mask
 
     def mapL2toL1(self, label1, label2):
+        # Matching two cluster structures
         D = max(label1.max(), label2.max()) + 1
         w = np.zeros((D, D), dtype=np.int64)
         try:
@@ -214,7 +216,7 @@ class CLoss1(nn.Module):
         self.pos_mask, self.neg_mask = self.get_pos_and_neg_mask(bs1, label1, label2, index_nearest1, index_nearest2)
         z_all = torch.cat([label1, label2], dim=0)
         sim_mat = self.cosine_similarity(
-            z_all.unsqueeze(1), z_all.unsqueeze(0)) / self.tau  # s_(i,j)
+            z_all.unsqueeze(1), z_all.unsqueeze(0)) / self.tau
         sim_mat = torch.log(sim_mat)
         sim_pos = torch.exp(sim_mat.masked_select(self.pos_mask).clone())
         sim_neg = torch.exp(sim_mat.masked_select(self.neg_mask).clone())
@@ -231,11 +233,11 @@ class CLoss1(nn.Module):
         sim_neg = torch.exp(sim_mat.masked_select(self.neg_mask).view(2*bs, -1).clone())
 
         loss2 = (- torch.log(sim_pos / (sim_neg.sum(dim=-1) + self.eps))).mean()
-        return loss1+ loss2
+        return loss1 + loss2
 
 
 class Pseudo_Label_Loss(nn.Module):
-
+    ''' Optimizing feature space by pseudo-label '''
     def __init__(self, bs, tau=0.5, gpu=True, eps=1e-8):
         super(Pseudo_Label_Loss, self).__init__()
         self.tau = tau
@@ -260,7 +262,7 @@ class Pseudo_Label_Loss(nn.Module):
             feature.unsqueeze(1), feature.unsqueeze(0)) / self.tau  # s_(i,j)
         sim_pos = torch.exp(sim_mat.masked_select(self.pos_mask).clone())
         sim_neg = torch.exp(sim_mat.masked_select(self.neg_mask).clone())
-        loss = (- torch.log(sim_pos / (sim_neg.sum(dim=-1) + self.eps))).mean()/10
+        loss = (- torch.log(sim_pos / (sim_neg.sum(dim=-1) + self.eps))).mean()
 
         return loss
 
