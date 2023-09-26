@@ -4,7 +4,7 @@ import numpy as np
 import utils1
 from dataset import Dateset_mat, data_loder
 from tqdm import trange
-from model import Net, UD_constraint, CLoss1, Pseudo_Label_Loss
+from model import Net, UD_constraint, NTXentLoss, Pseudo_Label_Loss
 import torch.nn.functional as F
 import warnings
 import torch.nn as nn
@@ -15,13 +15,13 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 parser = argparse.ArgumentParser()
 data_name = 'youcook'
-parser.add_argument("--dataset_root", default=data_name, type=str)   # nus 805 esp 80 flickr 1570 voc 910
+parser.add_argument("--dataset_root", default=data_name, type=str)
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--num_epochs", type=int, default=200)
 parser.add_argument("--batch_size", type=int, default=512)
 config = parser.parse_args()
 config.max_ACC = 0
-Closs1 = CLoss1(config.batch_size)
+loss_NTXent = NTXentLoss(config.batch_size)
 get_pseudo = Pseudo_Label_Loss(config.batch_size)
 print(config.dataset_root)
 
@@ -63,7 +63,12 @@ def run():
             txt2img_fea, txt2img_rec, txt2img_cluster, txt_cluster] \
                 = model(img_, txt_)
 
-            index_nearest1 = getNearest(img2txt_fea, txt_pro)
+            # img_pro, txt_pro: P_u, P_v
+            # img_c, txt_c are: C_u, C_v
+            # img2txt_fea, img2txt_rec: Z_uv, f_vu(Z_uv)
+            # img2txt_cluster, img_cluster: softmax C'(Z_uv) softmax C'(Z_u)
+
+            index_nearest1 = getNearest(img2txt_fea, txt_pro)   # get nearest neighbors
             index_nearest2 = getNearest(txt2img_fea, img_pro)
             try:
                 skl1 = torch.nn.functional.kl_div(img_pro, prior_sample).to(device)
@@ -71,24 +76,24 @@ def run():
             except:
                 prior_loc = torch.zeros(img_.size(0), 256)
                 prior_scale = torch.ones(img_.size(0), 256)
-                prior = normal.Normal(prior_loc, prior_scale)
-                prior_sample = prior.sample().to(device)
+                prior = normal.Normal(prior_loc, prior_scale)                         # img_pro: p(z_i|x_i)
+                prior_sample = prior.sample().to(device)                              # prior_sample: q(z_i)
                 skl1 = torch.nn.functional.kl_div(img_pro, prior_sample).to(device)
-                skl2 = torch.nn.functional.kl_div(txt_pro, prior_sample).to(device)
-            loss1 = Closs1(img_pro, txt_pro, img_c, txt_c, index_nearest1, index_nearest2)
-            loss2 = skl1 + skl2
+                skl2 = torch.nn.functional.kl_div(txt_pro, prior_sample).to(device)   # KL(p(z_i|x_i), q(z_i))
+            loss1 = loss_NTXent(img_pro, txt_pro, img_c, txt_c, index_nearest1, index_nearest2)   # mining consistent information
+            loss2 = skl1 + skl2                                                                   # removing superfluous information
             loss3 = F.l1_loss(img2txt_rec, img_pro) + F.l1_loss(txt2img_rec, txt_pro) \
                     + criterion(img2txt_cluster, img_cluster.argmax(dim=-1)) + criterion(txt2img_cluster, txt_cluster.argmax(dim=-1))
-            if epoch < 50:
+            if epoch < 50:                                                                        # cross-entropy loss and reconstruction loss to optimize mapping function
                 loss4 = 0
             else:
-                loss4 = get_pseudo(img_pro, img_c) + get_pseudo(txt_pro, txt_c)
+                loss4 = 0.1*(get_pseudo(img_pro, img_c) + get_pseudo(txt_pro, txt_c))  # optimizing feature space by pseudo-labels
 
             if epoch % 5 == 0:
                 with torch.no_grad():
                     UDC_img = UD_constraint(img_c).to(device)
                     UDC_txt = UD_constraint(txt_c).to(device)
-                    beta1, beta2 = criterion(img_c, UDC_img), criterion(txt_c, UDC_txt)
+                    beta1, beta2 = criterion(img_c, UDC_img), criterion(txt_c, UDC_txt)  # Uniform assignment constraint
                     loss_UDC = beta1 + beta2
             else:
                 loss_UDC = 0
@@ -103,7 +108,8 @@ def run():
             all_img_pro, all_txt_pro, all_img_c, all_txt_c, _ = model(img, txt)
             acc_1, nmi_1, ari1 = getACC_NMI(all_img_c, label)
             print('ACC %.4f NMI1: %.4f ARI1: %.4f' % (acc_1, nmi_1, ari1))
-
+    del data, model, img, txt
+    return max_ACC
 
 
 def getNearest(fea1, fea2):
